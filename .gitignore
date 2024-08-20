@@ -1,0 +1,16 @@
+# Ignorar arquivos de log
+*.log
+
+# Ignorar arquivos de configuração local
+config.local.yml
+
+# Ignorar o diretório de dependências
+node_modules/
+
+# Ignorar arquivos temporários
+*.tmp
+
+# Ignorar arquivos compilados
+*.o
+*.a
+*.so
