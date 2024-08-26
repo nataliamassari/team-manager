@@ -1,7 +1,9 @@
-const { Sequelize, DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const { DataTypes } = require("sequelize");
+const sequelize = require("../config/database");
 
-const Team = sequelize.define('Team', {
+const Team = sequelize.define(
+  "Team",
+  {
     name: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -14,14 +16,15 @@ const Team = sequelize.define('Team', {
     leaderId: {
       type: DataTypes.INTEGER,
       references: {
-        model: 'users',
-        key: 'id'
+        model: "users",
+        key: "id",
       },
       allowNull: false,
-    }
-  }, {
-    tableName: 'teams',
-  });
-  
-  module.exports = Team;
-  
+    },
+  },
+  {
+    tableName: "teams",
+  },
+);
+
+module.exports = Team;

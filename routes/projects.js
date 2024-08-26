@@ -1,65 +1,111 @@
-var express = require('express');
-const { Project } = require('../models');
+var express = require("express");
+const { paginationSchema } = require("../schemas/generalSchema");
+const {
+  projectCreationSchema,
+  projectUpdateSchema,
+} = require("../schemas/projectSchema");
+const { Project, Team } = require("../models");
 var router = express.Router();
 
-router.post('/create', async (req, res) => {
+router.post("/create", async (req, res) => {
   try {
-    const { name, description, teamId } = req.body;
+    const { error, value } = projectCreationSchema.validate(req.body);
 
-    if (name) {
-      let project = await Project.create({ name, description, teamId });
-      res.status(201).json(project);
-    } else {
-      res.status(400).json({ error: "Dados inválidos. Verifique todos os campos." });
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
     }
+
+    const { name, description, teamId } = value;
+
+    const team = await Team.findByPk(teamId);
+    if (!team) {
+      return res.status(400).json({ error: "O time especificado não existe." });
+    }
+
+    const project = await Project.create({ name, description, teamId });
+    res.status(201).json({ message: "Projeto criado com sucesso!", project });
   } catch (error) {
-    console.error('Erro ao criar projeto:', error);
+    console.error("Erro ao criar projeto:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
-router.put('/update/:id', async (req, res) => {
+router.get("/read", async (req, res) => {
   try {
+    const { error, value } = paginationSchema.validate(req.query);
+
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const { limit, page } = value;
+    const pageLimit = (page - 1) * limit;
+
+    const projects = await Project.findAll({
+      limit: limit,
+      offset: pageLimit,
+    });
+
+    res.json({ message: "Projetos encontrados!", projects });
+  } catch (error) {
+    console.error("Erro ao ler projetos:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put("/update/:id", async (req, res) => {
+  try {
+    const { error, value } = projectUpdateSchema.validate(req.body);
+
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const { name, description, teamId } = value;
     const { id } = req.params;
-    const { name, description, teamId } = req.body;
 
-    if (name || description || teamId ) {
-      const [updated] = await Project.update(
-        { name, description, teamId },
-        {
-          where: { id },
-        }
-      );
-
-      if (updated) {
-        const project = await Project.findByPk(id);
-        res.json(project);
-      };
-    } else {
-      res.status(400).json({ error: "Dados inválidos. Verifique todos os campos." });
+    if (teamId) {
+      const team = await Team.findByPk(teamId);
+      if (!team) {
+        return res
+          .status(400)
+          .json({ error: "O time especificado não existe." });
+      }
     }
-  } catch (error) {
-    console.error('Erro ao atualizar dados do projeto:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
 
+    const [updated] = await Project.update(
+      { name, description, teamId },
+      {
+        where: { id },
+      },
+    );
 
-router.delete('/delete/:id', async (req, res) => {
-  try {
-    const { id } = req.params; 
-    const project = await Project.findByPk(id);
-    if (project) {
-      await project.destroy();
-      res.status(204).json();
+    if (updated) {
+      const project = await Project.findByPk(id);
+      res.json({ message: "Projeto atualizado com sucesso!", project });
     } else {
       res.status(404).json({ error: "Projeto não encontrado." });
     }
   } catch (error) {
+    console.error("Erro ao atualizar projeto:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
-
+router.delete("/delete/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const project = await Project.findByPk(id);
+    if (project) {
+      await project.destroy();
+      res.status(204).json({ message: "Projeto deletado com sucesso!" });
+    } else {
+      res.status(404).json({ error: "Projeto não encontrado." });
+    }
+  } catch (error) {
+    console.error("Erro ao deletar projeto:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 module.exports = router;
