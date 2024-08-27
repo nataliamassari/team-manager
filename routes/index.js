@@ -1,11 +1,59 @@
+require("dotenv").config();
 var express = require("express");
+const { paginationSchema } = require("../schemas/generalSchema");
 const { User, Team, Project, sequelize } = require("../models");
+const jwt = require("jsonwebtoken");
 var router = express.Router();
 
 /* GET home page. */
 router.get("/", function (req, res, next) {
   res.json({ count: 0, lista: [] });
   res.render("index", { title: "Express" });
+});
+
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return res
+        .status(400)
+        .json({
+          auth: false,
+          token: null,
+          error: "Usuário ou senha incorretos.",
+        });
+    }
+
+    if (password !== user.password) {
+      return res
+        .status(400)
+        .json({
+          auth: false,
+          token: null,
+          error: "Usuário ou senha incorretos.",
+        });
+    }
+
+    const token = jwt.sign({ id: user.id }, process.env.SECRET, {
+      expiresIn: "1h",
+    });
+
+    res.json({
+      auth: true,
+      token: token,
+    });
+  } catch (error) {
+    console.error("Erro ao realizar login:", error);
+    res
+      .status(500)
+      .json({
+        auth: false,
+        token: null,
+        error: "Erro ao realizar login, tente novamente mais tarde.",
+      });
+  }
 });
 
 router.get("/install", async function (req, res, next) {

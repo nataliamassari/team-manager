@@ -90,30 +90,31 @@ router.put("/update/:id", async (req, res) => {
     const { id } = req.params;
     const { username, email, password } = value;
 
-    const existingUser = await User.findOne({
-      where: {
-        email,
-        id: { [Sequelize.Op.ne]: id },
-      },
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ error: "Usuário não encontrado." });
+    }
+
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({
+        where: {
+          email,
+          id: { [Sequelize.Op.ne]: id },
+        },
+      });
+
+      if (existingUser) {
+        return res.status(400).json({ error: "O e-mail já está em uso." });
+      }
+    }
+
+    await user.update({
+      username: username !== undefined ? username : user.username,
+      email: email !== undefined ? email : user.email,
+      password: password !== undefined ? password : user.password,
     });
 
-    if (existingUser) {
-      return res.status(400).json({ error: "O e-mail já está em uso." });
-    }
-
-    const [updated] = await User.update(
-      { username, email, password },
-      {
-        where: { id },
-      },
-    );
-
-    if (updated) {
-      const user = await User.findByPk(id);
-      res.json({ message: "Dados atualizados com sucesso!", user });
-    } else {
-      res.status(404).json({ error: "Usuário não encontrado." });
-    }
+    res.json({ message: "Dados atualizados com sucesso!", user });
   } catch (error) {
     console.error("Erro ao atualizar dados do usuário:", error);
     if (error.name === "SequelizeUniqueConstraintError") {
