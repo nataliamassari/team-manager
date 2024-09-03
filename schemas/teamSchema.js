@@ -12,12 +12,6 @@ const teamCreationSchema = Joi.object({
     "string.base": "A descrição deve ser uma string.",
     "string.max": "A descrição deve ter no máximo {#limit} caracteres.",
   }),
-  leaderId: Joi.number().integer().positive().required().messages({
-    "number.base": "O líder deve ser um número.",
-    "number.integer": "O líder deve ser um número inteiro.",
-    "number.positive": "O líder deve ser um número positivo.",
-    "any.required": "O líder é obrigatório.",
-  }),
 });
 
 const teamUpdateSchema = Joi.object({

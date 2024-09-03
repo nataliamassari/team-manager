@@ -4,10 +4,16 @@ const {
   teamCreationSchema,
   teamUpdateSchema,
 } = require("../schemas/teamSchema");
+const { Op } = require("sequelize"); // importa operadores
+const {
+  authenticateToken,
+  authenticateAdmin,
+} = require("../middlewares/authMiddleware");
 const { Team, User } = require("../models");
 var router = express.Router();
+const sequelize = require("../config/database");
 
-router.post("/create", async (req, res) => {
+router.post("/create", authenticateToken, async (req, res) => {
   try {
     const { error, value } = teamCreationSchema.validate(req.body);
 
@@ -15,19 +21,49 @@ router.post("/create", async (req, res) => {
       return res.status(400).json({ error: error.details[0].message });
     }
 
-    const { name, description, leaderId } = value;
-
-    const leader = await User.findByPk(leaderId);
-    if (!leader) {
-      return res
-        .status(400)
-        .json({ error: "O líder especificado não existe." });
-    }
+    const { name, description } = value;
+    const leaderId = req.user.id;
 
     const team = await Team.create({ name, description, leaderId });
     res.status(201).json({ message: "Time criado com sucesso!", team });
   } catch (error) {
     console.error("Erro ao criar time:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+//add membros no time
+router.post("/:teamId/members", authenticateToken, async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { userId } = req.body;
+    const userIdAccessing = req.user.id;
+
+    const team = await Team.findByPk(teamId);
+    if (!team) {
+      return res.status(404).json({ error: "Time não encontrado." });
+    }
+
+    if (userIdAccessing !== team.leaderId) {
+      return res
+        .status(403)
+        .json({
+          error: "Você não tem permissão para adicionar membros a este time.",
+        });
+    }
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: "Usuário não encontrado." });
+    }
+
+    await team.addMember(userId);
+
+    res
+      .status(200)
+      .json({ message: "Usuário adicionado ao time com sucesso!" });
+  } catch (error) {
+    console.error("Erro ao adicionar usuário ao time:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -54,7 +90,48 @@ router.get("/read", async (req, res) => {
   }
 });
 
-router.put("/update/:id", async (req, res) => {
+router.get("/my-teams", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const teams = await Team.findAll({
+      include: [
+        {
+          model: User,
+          as: "Leader",
+          attributes: ["id", "username"],
+          required: true,
+        },
+        {
+          model: User,
+          as: "Members",
+          attributes: ["id", "username"],
+          through: { attributes: [] },
+          required: false,
+        },
+      ],
+      where: {
+        [Op.or]: [
+          { leaderId: userId },
+          {
+            [Op.and]: [
+              {
+                "$Members.id$": userId,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    res.json({ message: "Times pertencentes encontrados.", teams });
+  } catch (error) {
+    console.error("Erro ao ler times:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put("/update/:id", authenticateToken, async (req, res) => {
   try {
     const { error, value } = teamUpdateSchema.validate(req.body);
 
@@ -62,18 +139,23 @@ router.put("/update/:id", async (req, res) => {
       return res.status(400).json({ error: error.details[0].message });
     }
 
-    const { name, description, leaderId } = value;
+    const { name, description } = value;
     const { id } = req.params;
+    const userId = req.user.id;
 
-    const leader = await User.findByPk(leaderId);
-    if (!leader) {
+    const team = await Team.findByPk(id);
+    if (!team) {
+      return res.status(404).json({ error: "Time não encontrado." });
+    }
+
+    if (userId !== team.leaderId) {
       return res
-        .status(400)
-        .json({ error: "O líder especificado não existe." });
+        .status(403)
+        .json({ error: "Você não tem permissão para atualizar este time." });
     }
 
     const [updated] = await Team.update(
-      { name, description, leaderId },
+      { name, description },
       {
         where: { id },
       },
@@ -91,16 +173,23 @@ router.put("/update/:id", async (req, res) => {
   }
 });
 
-router.delete("/delete/:id", async (req, res) => {
+router.delete("/delete/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const team = await Team.findByPk(id);
-    if (team) {
-      await team.destroy();
-      res.status(204).json({ message: "Time deletado com sucesso!" });
-    } else {
-      res.status(404).json({ error: "Time não encontrado." });
+    const userId = req.user.id;
+
+    if (!team) {
+      return res.status(404).json({ error: "Time não encontrado." });
     }
+
+    if (userId !== team.leaderId) {
+      return res
+        .status(403)
+        .json({ error: "Você não tem permissão para deletar este time." });
+    }
+    await team.destroy();
+    res.status(204).json({ message: "Time deletado com sucesso!" });
   } catch (error) {
     console.error("Erro ao deletar time:", error);
     res.status(500).json({ error: error.message });

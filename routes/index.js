@@ -1,7 +1,7 @@
 require("dotenv").config();
 var express = require("express");
 const { paginationSchema } = require("../schemas/generalSchema");
-const { User, Team, Project, sequelize } = require("../models");
+const { User, Team, Project, TeamMember, sequelize } = require("../models");
 const jwt = require("jsonwebtoken");
 var router = express.Router();
 
@@ -17,28 +17,30 @@ router.post("/login", async (req, res) => {
 
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      return res
-        .status(400)
-        .json({
-          auth: false,
-          token: null,
-          error: "Usuário ou senha incorretos.",
-        });
+      return res.status(400).json({
+        auth: false,
+        token: null,
+        error: "Usuário ou senha incorretos.",
+      });
     }
 
     if (password !== user.password) {
-      return res
-        .status(400)
-        .json({
-          auth: false,
-          token: null,
-          error: "Usuário ou senha incorretos.",
-        });
+      return res.status(400).json({
+        auth: false,
+        token: null,
+        error: "Usuário ou senha incorretos.",
+      });
     }
 
-    const token = jwt.sign({ id: user.id }, process.env.SECRET, {
-      expiresIn: "1h",
-    });
+    const token = jwt.sign(
+      { id: user.id, isAdmin: user.isAdmin },
+      process.env.SECRET,
+      {
+        expiresIn: "1h",
+      },
+    );
+
+    res.cookie("token", token, { httpOnly: true, maxAge: 3600000 });
 
     res.json({
       auth: true,
@@ -46,13 +48,11 @@ router.post("/login", async (req, res) => {
     });
   } catch (error) {
     console.error("Erro ao realizar login:", error);
-    res
-      .status(500)
-      .json({
-        auth: false,
-        token: null,
-        error: "Erro ao realizar login, tente novamente mais tarde.",
-      });
+    res.status(500).json({
+      auth: false,
+      token: null,
+      error: "Erro ao realizar login, tente novamente mais tarde.",
+    });
   }
 });
 
@@ -64,6 +64,7 @@ router.get("/install", async function (req, res, next) {
     await Project.sync({ force: true });
     await Team.sync({ force: true });
     await User.sync({ force: true });
+    await TeamMember.sync({ force: true });
 
     const users = [
       {

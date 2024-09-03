@@ -24,6 +24,7 @@ const Team = sequelize.define(
   },
   {
     tableName: "teams",
+    timestamps: false,
   },
 );
 

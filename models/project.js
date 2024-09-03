@@ -24,6 +24,7 @@ const Project = sequelize.define(
   },
   {
     tableName: "projects",
+    timestamps: false,
   },
 );
 
