@@ -112,11 +112,9 @@ router.put(
       const isAdmin = req.user.isAdmin;
 
       if (userId !== id && !isAdmin) {
-        return res
-          .status(403)
-          .json({
-            error: "Acesso negado. Você só pode atualizar sua própria conta.",
-          });
+        return res.status(403).json({
+          error: "Acesso negado. Você só pode atualizar sua própria conta.",
+        });
       }
 
       if (email && email !== user.email) {

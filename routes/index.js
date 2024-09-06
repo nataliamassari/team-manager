@@ -1,6 +1,5 @@
 require("dotenv").config();
 var express = require("express");
-const { paginationSchema } = require("../schemas/generalSchema");
 const { User, Team, Project, TeamMember, sequelize } = require("../models");
 const jwt = require("jsonwebtoken");
 var router = express.Router();
@@ -52,6 +51,23 @@ router.post("/login", async (req, res) => {
       auth: false,
       token: null,
       error: "Erro ao realizar login, tente novamente mais tarde.",
+    });
+  }
+});
+
+router.post("/logout", (req, res) => {
+  try {
+    res.clearCookie("token");
+
+    res.json({
+      auth: false,
+      message: "Logout realizado com sucesso.",
+    });
+  } catch (error) {
+    console.error("Erro ao realizar logout:", error);
+    res.status(500).json({
+      auth: false,
+      error: "Erro ao realizar logout, tente novamente mais tarde.",
     });
   }
 });

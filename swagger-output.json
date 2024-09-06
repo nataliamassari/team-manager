@@ -3,7 +3,7 @@
   "info": {
     "version": "1.0.0",
     "title": "REST API",
-    "description": "Api do gerenciamento de times."
+    "description": "Api do gerenciamento de times. Usuário Admin para testes [ Email: admin@example.com | Senha: admin123 ] "
   },
   "host": "localhost:3000",
   "basePath": "/",
@@ -21,7 +21,7 @@
     },
     "/login": {
       "post": {
-        "description": "Login",
+        "description": "Entrar na conta.",
         "parameters": [
           {
             "name": "body",
@@ -52,6 +52,19 @@
         }
       }
     },
+    "/logout": {
+      "post": {
+        "description": "Sair da conta.",
+        "responses": {
+          "200": {
+            "description": "Usuário deslogado."
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/install": {
       "get": {
         "description": "Preenche e instala o banco de dados.",
@@ -67,6 +80,7 @@
     },
     "/users/create": {
       "post": {
+        "tags": ["Users"],
         "description": "Cria um usuário.",
         "parameters": [
           {
@@ -101,8 +115,46 @@
         }
       }
     },
+    "/users/create-admin": {
+      "post": {
+        "tags": ["Users"],
+        "description": "Cria um usuário administrador.",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "username": {
+                  "example": "user name"
+                },
+                "email": {
+                  "example": "example@example.com"
+                },
+                "password": {
+                  "example": "password"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/users/read": {
       "get": {
+        "tags": ["Users"],
         "description": "Buscar usuários por página.",
         "parameters": [
           {
@@ -163,6 +215,7 @@
     },
     "/users/update/{id}": {
       "put": {
+        "tags": ["Users"],
         "description": "Atualizar dados de um usuário.",
         "parameters": [
           {
@@ -211,6 +264,7 @@
     },
     "/users/delete/{id}": {
       "delete": {
+        "tags": ["Users"],
         "description": "Deletar um usuário.",
         "parameters": [
           {
@@ -233,18 +287,522 @@
         }
       }
     },
-    "/users/create-admin": {
+    "/teams/create": {
       "post": {
-        "description": "Cria um usuário administrador.",
+        "tags": ["Teams"],
+        "description": "Cria um time.",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "team-name": {
+                  "example": "team name"
+                },
+                "description": {
+                  "example": "team description"
+                },
+                "teamId": {
+                  "example": 1
+                }
+              }
+            }
+          }
+        ],
         "responses": {
-          "201": {
-            "description": "Created"
+          "200": {
+            "description": "Time criado com sucesso!"
+          },
+          "400": {
+            "description": "Dados inválidos."
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "teams/{teamId}/member/{userId}": {
+      "post": {
+        "tags": ["Teams"],
+        "description": "Adicionar um membro a um time.",
+        "parameters": [
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
           },
           "400": {
             "description": "Bad Request"
           },
+          "404": {
+            "description": "Not Found"
+          },
           "500": {
             "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "teams/{teamId}/member/{id}": {
+      "delete": {
+        "tags": ["Teams"],
+        "description": "Remove um membro do time.",
+        "parameters": [
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "ID do time do qual o membro será removido."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "ID do usuário a ser removido do time."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usuário removido do time com sucesso!"
+          },
+          "400": {
+            "description": "Dados incorretos, tente novamente."
+          },
+          "403": {
+            "description": "Você não tem permissão para remover membros deste time."
+          },
+          "404": {
+            "description": "Time ou usuário não encontrado."
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "teams/read": {
+      "get": {
+        "tags": ["Teams"],
+        "description": "Busca times com paginação.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "example": 10
+            },
+            "description": "Máximo de times exibidos por página."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Número da página a ser retornada."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Times encontrados!",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Times encontrados!"
+                    },
+                    "teams": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Team"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados de paginação inválidos."
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "teams/my-teams": {
+      "get": {
+        "tags": ["Teams"],
+        "description": "Busca os times dos quais o usuário é membro ou líder.",
+        "responses": {
+          "200": {
+            "description": "Times pertencentes encontrados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Times pertencentes encontrados."
+                    },
+                    "teams": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Team"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "teams/update/{id}": {
+      "put": {
+        "tags": ["Teams"],
+        "description": "Atualiza os dados de um time.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "ID do time a ser atualizado."
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "Novo Nome do Time"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Nova descrição do time."
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dados do time atualizados com sucesso!"
+          },
+          "400": {
+            "description": "Dados inválidos."
+          },
+          "403": {
+            "description": "Você não tem permissão para atualizar este time."
+          },
+          "404": {
+            "description": "Time não encontrado."
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "teams/delete/{id}": {
+      "delete": {
+        "tags": ["Teams"],
+        "description": "Deleta um time.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "ID do time a ser deletado."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Time deletado com sucesso!"
+          },
+          "400": {
+            "description": "Dados inválidos."
+          },
+          "403": {
+            "description": "Você não tem permissão para deletar este time."
+          },
+          "404": {
+            "description": "Time não encontrado."
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/projects/create": {
+      "post": {
+        "tags": ["Projects"],
+        "description": "Cria um novo projeto.",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "Nome do Projeto"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Descrição do Projeto"
+                },
+                "teamId": {
+                  "type": "integer",
+                  "example": 1
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Projeto criado com sucesso!"
+          },
+          "400": {
+            "description": "Dados inválidos ou time não encontrado."
+          },
+          "500": {
+            "description": "Erro interno no servidor."
+          }
+        }
+      }
+    },
+    "/projects/read": {
+      "get": {
+        "tags": ["Projects"],
+        "description": "Busca todos os projetos com paginação.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "example": 10
+            },
+            "description": "Número máximo de projetos por página."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "example": 1
+            },
+            "description": "Número da página a ser retornada."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Projetos encontrados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Projetos encontrados!"
+                    },
+                    "projects": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "teamId": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados de paginação inválidos."
+          },
+          "500": {
+            "description": "Erro interno no servidor."
+          }
+        }
+      }
+    },
+    "/projects/update/{id}": {
+      "put": {
+        "tags": ["Projects"],
+        "description": "Atualiza os dados de um projeto.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID do projeto a ser atualizado."
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "Novo Nome do Projeto"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Nova Descrição do Projeto"
+                },
+                "teamId": {
+                  "type": "integer",
+                  "example": 2
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Projeto atualizado com sucesso."
+          },
+          "400": {
+            "description": "Dados inválidos ou time não encontrado."
+          },
+          "404": {
+            "description": "Projeto não encontrado."
+          },
+          "500": {
+            "description": "Erro interno no servidor."
+          }
+        }
+      }
+    },
+    "/projects/my-projects": {
+      "get": {
+        "tags": ["Projects"],
+        "description": "Busca os projetos pertencentes ao usuário autenticado.",
+        "responses": {
+          "200": {
+            "description": "Projetos pertencentes encontrados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Projetos pertencentes encontrados."
+                    },
+                    "projects": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "teamId": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno no servidor."
+          }
+        }
+      }
+    },
+    "/projects/delete/{projectId}": {
+      "delete": {
+        "tags": ["Projects"],
+        "description": "Deleta um projeto específico.",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID do projeto a ser deletado."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Projeto deletado com sucesso."
+          },
+          "403": {
+            "description": "Usuário não tem permissão para deletar este projeto."
+          },
+          "404": {
+            "description": "Projeto ou time associado não encontrado."
+          },
+          "500": {
+            "description": "Erro interno no servidor."
           }
         }
       }

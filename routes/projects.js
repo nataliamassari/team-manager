@@ -3,11 +3,14 @@ const { paginationSchema } = require("../schemas/generalSchema");
 const {
   projectCreationSchema,
   projectUpdateSchema,
+  projectDeletionSchema,
 } = require("../schemas/projectSchema");
-const { Project, Team } = require("../models");
+const { authenticateToken } = require("../middlewares/authMiddleware");
+const { Op } = require("sequelize"); // importa operadores
+const { Project, Team, User } = require("../models");
 var router = express.Router();
 
-router.post("/create", async (req, res) => {
+router.post("/create", authenticateToken, async (req, res) => {
   try {
     const { error, value } = projectCreationSchema.validate(req.body);
 
@@ -53,7 +56,7 @@ router.get("/read", async (req, res) => {
   }
 });
 
-router.put("/update/:id", async (req, res) => {
+router.put("/update/:id", authenticateToken, async (req, res) => {
   try {
     const { error, value } = projectUpdateSchema.validate(req.body);
 
@@ -92,19 +95,89 @@ router.put("/update/:id", async (req, res) => {
   }
 });
 
-router.delete("/delete/:id", async (req, res) => {
+router.get("/my-projects", authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
-    const project = await Project.findByPk(id);
-    if (project) {
-      await project.destroy();
-      res.status(204).json({ message: "Projeto deletado com sucesso!" });
-    } else {
-      res.status(404).json({ error: "Projeto não encontrado." });
+    const userId = req.user.id;
+
+    const projects = await Project.findAll({
+      include: [
+        {
+          model: Team,
+          as: "Team",
+          include: [
+            {
+              model: User,
+              as: "Leader",
+              attributes: ["id", "username"],
+              required: true,
+            },
+            {
+              model: User,
+              as: "Members",
+              attributes: ["id", "username"],
+              through: { attributes: [] },
+              required: false,
+            },
+          ],
+          required: true,
+        },
+      ],
+      where: {
+        [Op.or]: [
+          { "$Team.leaderId$": userId },
+          {
+            [Op.and]: [
+              {
+                "$Team.Members.id$": userId,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    res.json({ message: "Projetos pertencentes encontrados.", projects });
+  } catch (error) {
+    console.error("Erro ao ler projetos:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete("/delete/:projectId", authenticateToken, async (req, res) => {
+  try {
+    const { error, value } = projectDeletionSchema.validate(req.params);
+
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
     }
+
+    const { projectId } = value;
+    const userId = req.user.id;
+
+    const project = await Project.findByPk(projectId);
+    if (!project) {
+      return res.status(404).json({ error: "Projeto não encontrado." });
+    }
+
+    const team = await Team.findByPk(project.teamId);
+    if (!team) {
+      return res
+        .status(404)
+        .json({ error: "Time associado ao projeto não encontrado." });
+    }
+
+    if (userId !== team.leaderId) {
+      return res
+        .status(403)
+        .json({ error: "Você não tem permissão para deletar este projeto." });
+    }
+
+    await project.destroy();
+
+    res.status(204).json({ message: "Projeto deletado com sucesso!" });
   } catch (error) {
     console.error("Erro ao deletar projeto:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro interno no servidor." });
   }
 });
 

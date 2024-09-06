@@ -3,16 +3,18 @@ const { paginationSchema } = require("../schemas/generalSchema");
 const {
   teamCreationSchema,
   teamUpdateSchema,
+  teamDeletionSchema,
 } = require("../schemas/teamSchema");
-const { Op } = require("sequelize"); // importa operadores
 const {
-  authenticateToken,
-  authenticateAdmin,
-} = require("../middlewares/authMiddleware");
+  teamMemberCreationSchema,
+  teamMemberDeletionSchema,
+} = require("../schemas/teamMemberSchema");
+const { Op } = require("sequelize"); // importa operadores
+const { authenticateToken } = require("../middlewares/authMiddleware");
 const { Team, User } = require("../models");
 var router = express.Router();
-const sequelize = require("../config/database");
 
+//criar time
 router.post("/create", authenticateToken, async (req, res) => {
   try {
     const { error, value } = teamCreationSchema.validate(req.body);
@@ -31,12 +33,16 @@ router.post("/create", authenticateToken, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 //add membros no time
-router.post("/:teamId/members", authenticateToken, async (req, res) => {
+router.post("/:teamId/member/:userId", authenticateToken, async (req, res) => {
   try {
-    const { teamId } = req.params;
-    const { userId } = req.body;
+    const { error, value } = teamMemberCreationSchema.validate(req.params);
+
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const { teamId, userId } = value;
     const userIdAccessing = req.user.id;
 
     const team = await Team.findByPk(teamId);
@@ -45,11 +51,9 @@ router.post("/:teamId/members", authenticateToken, async (req, res) => {
     }
 
     if (userIdAccessing !== team.leaderId) {
-      return res
-        .status(403)
-        .json({
-          error: "Você não tem permissão para adicionar membros a este time.",
-        });
+      return res.status(403).json({
+        error: "Você não tem permissão para adicionar membros a este time.",
+      });
     }
 
     const user = await User.findByPk(userId);
@@ -57,7 +61,12 @@ router.post("/:teamId/members", authenticateToken, async (req, res) => {
       return res.status(404).json({ error: "Usuário não encontrado." });
     }
 
-    await team.addMember(userId);
+    const isMember = await team.hasMember(user);
+    if (isMember) {
+      return res.status(400).json({ error: "Usuário já é membro deste time." });
+    }
+
+    await team.addMember(user);
 
     res
       .status(200)
@@ -67,8 +76,47 @@ router.post("/:teamId/members", authenticateToken, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+//remove membros do time
+router.delete("/:teamId/member/:id", authenticateToken, async (req, res) => {
+  try {
+    const { error, value } = teamMemberDeletionSchema.validate({
+      teamId: req.params.teamId,
+      userId: req.params.id,
+    });
 
-router.get("/read", async (req, res) => {
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const { teamId, userId } = value;
+    const userIdAccessing = req.user.id;
+
+    const team = await Team.findByPk(teamId);
+    if (!team) {
+      return res.status(404).json({ error: "Time não encontrado." });
+    }
+
+    if (userIdAccessing !== team.leaderId) {
+      return res.status(403).json({
+        error: "Você não tem permissão para remover membros deste time.",
+      });
+    }
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: "Usuário não encontrado." });
+    }
+
+    await team.removeMember(user);
+
+    res.status(200).json({ message: "Usuário removido do time com sucesso!" });
+  } catch (error) {
+    console.error("Erro ao remover usuário do time:", error);
+    res.status(500).json({ error: "Erro interno no servidor." });
+  }
+});
+//paginacao dos times
+router.get("/read", authenticateToken, async (req, res) => {
   try {
     const { error, value } = paginationSchema.validate(req.query);
 
@@ -89,7 +137,7 @@ router.get("/read", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
+//ver meus times
 router.get("/my-teams", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -130,7 +178,7 @@ router.get("/my-teams", authenticateToken, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
+//alterar informacoes do time
 router.put("/update/:id", authenticateToken, async (req, res) => {
   try {
     const { error, value } = teamUpdateSchema.validate(req.body);
@@ -172,10 +220,18 @@ router.put("/update/:id", authenticateToken, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
+//deletar time
 router.delete("/delete/:id", authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
+    const { error, value } = teamDeletionSchema.validate({
+      userId: req.params.id,
+    });
+
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const { id } = value;
     const team = await Team.findByPk(id);
     const userId = req.user.id;
 

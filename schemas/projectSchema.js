@@ -38,7 +38,17 @@ const projectUpdateSchema = Joi.object({
   }),
 }).or("name", "description", "teamId");
 
+const projectDeletionSchema = Joi.object({
+  projectId: Joi.number().integer().positive().required().messages({
+    "number.base": "O ID do projeto deve ser um número.",
+    "number.integer": "O ID do projeto deve ser um número inteiro.",
+    "number.positive": "O ID do projeto deve ser um número positivo.",
+    "any.required": "O ID do projto é obrigatório para a deleção.",
+  }),
+});
+
 module.exports = {
   projectCreationSchema,
   projectUpdateSchema,
+  projectDeletionSchema,
 };

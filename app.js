@@ -16,6 +16,9 @@ var projectsRouter = require("./routes/projects");
 
 var app = express();
 
+//swagger docs
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
 // view engine setup
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "pug");
