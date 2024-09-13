@@ -10,7 +10,9 @@ const {
   teamMemberDeletionSchema,
 } = require("../schemas/teamMemberSchema");
 const { Op } = require("sequelize"); // importa operadores
-const { authenticateToken } = require("../middlewares/authMiddleware");
+const { authenticateToken,
+        authenticateAdmin, 
+      } = require("../middlewares/authMiddleware");
 const { Team, User } = require("../models");
 var router = express.Router();
 
@@ -252,4 +254,46 @@ router.delete("/delete/:id", authenticateToken, async (req, res) => {
   }
 });
 
+router.get("/teams-by-user/:userId", authenticateToken, authenticateAdmin, async (req, res) => {
+  try {
+    const {userId} = req.params
+
+    const teams = await Team.findAll({
+      include: [
+        {
+          model: User,
+          as: "Leader",
+          attributes: ["id", "username"],
+          required: true,
+        },
+        {
+          model: User,
+          as: "Members",
+          attributes: ["id", "username"],
+          through: { attributes: [] },
+          required: false,
+        },
+      ],
+      where: {
+        [Op.or]: [
+          { leaderId: userId },
+          {
+            [Op.and]: [
+              {
+                "$Members.id$": userId,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    res.json({ message: "Times pertencentes ao usuário selecionado encontrados.", teams });
+  } catch (error) {
+    console.error("Erro ao ler times:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+// rota ou my teams ou my projects só pro admin 
+//quais projetos ou times do usuairo selecionado
 module.exports = router;
